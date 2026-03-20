@@ -1,16 +1,17 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RTN Prayer Watch Generator</title>
-
+  
 <!-- Boogaloo font -->
 <link href="https://fonts.googleapis.com/css2?family=Boogaloo&display=swap" rel="stylesheet">
-
+  
 <style>
 body {
-  font-family: 'Boogaloo', Arial, sans-serif; /* Only font changed */
+  font-family: 'Boogaloo', Arial, sans-serif;
   text-align: center;
   background: #0f0f0f;
   color: white;
@@ -26,7 +27,7 @@ input, textarea, button {
   width: 100%;
   padding: 12px;
   margin: 8px 0;
-  border-radius: 8px; /* preserved original radius */
+  border-radius: 8px;
   border: none;
 }
 
@@ -40,18 +41,19 @@ button {
 canvas {
   width: 100%;
   margin-top: 20px;
-  border-radius: 10px; /* preserved original canvas radius */
+  border-radius: 10px;
 }
 </style>
 </head>
+
 <body>
 
 <div class="container">
-<h2>Generate Your Prayer Watch Flyer</h2>
+<h2>Tell us how prayer watch has been of help to you</h2>
 
 <input type="file" id="upload" accept="image/*">
 <input type="text" id="name" placeholder="Enter your name">
-<textarea id="testimony" placeholder="What did you learn?" rows="4"></textarea>
+<textarea id="testimony" placeholder="Tell one thing you've learnt?" rows="4"></textarea>
 
 <button onclick="generate()">Generate Flyer</button>
 
@@ -111,30 +113,31 @@ function generate() {
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
 
-      // Background
+      // Background (fix transparency issue)
       ctx.fillStyle = "#1a0f0a";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw user image
+      // Draw user image (circle)
       drawCircularImage(ctx, img, 390, 300, 300);
 
       // Draw template overlay
       ctx.drawImage(template, 0, 0, 1080, 1350);
 
       // TEXT SETTINGS
-      ctx.fillStyle = "#ffffff"; // text color unchanged
+      ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
 
-      // Name
+      // Auto-resize name
       let fontSize = 50;
       do {
-        ctx.font = "bold " + fontSize + "px 'Boogaloo'";
+        ctx.font = "bold " + fontSize + "px Arial";
         fontSize--;
       } while (ctx.measureText(name).width > 700);
+
       ctx.fillText(name, 540, 720);
 
       // Testimony
-      ctx.font = "32px 'Boogaloo'";
+      ctx.font = "32px Arial";
       wrapText(ctx, testimony, 540, 820, 600, 40);
 
       // Enable download
@@ -150,5 +153,6 @@ function generate() {
   reader.readAsDataURL(file);
 }
 </script>
+
 </body>
 </html>
