@@ -1,28 +1,28 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RTN Prayer Watch Generator</title>
-
+<link href="https://fonts.googleapis.com/css2?family=Boogaloo&display=swap" rel="stylesheet">
 <style>
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Arial', sans-serif;
   text-align: center;
   background: #0f0f0f;
   color: white;
-  padding: 20px;
+  padding: 10px;
 }
 
 .container {
-  max-width: 400px;
+  max-width: 500px;
   margin: auto;
 }
 
 input, textarea, button {
   width: 100%;
-  padding: 12px;
-  margin: 8px 0;
+  padding: 10px;
+  margin: 5px 0;
   border-radius: 8px;
   border: none;
 }
@@ -38,32 +38,46 @@ canvas {
   width: 100%;
   margin-top: 20px;
   border-radius: 10px;
+  touch-action: none; /* allow drag on mobile */
 }
 </style>
 </head>
-
 <body>
 
 <div class="container">
-<h2>Tell Us how prayer watch has helped you</h2>
-
-<input type="file" id="upload" accept="image/*">
-<input type="text" id="name" placeholder="Enter your name">
-<textarea id="testimony" placeholder="What you've learnt from prayer watch?" rows="4"></textarea>
-
-<button onclick="generate()">Generate Flyer</button>
-
-<canvas id="canvas" width="1080" height="1350"></canvas>
-
-<a id="download" style="display:none;">
-  <button>Download Flyer</button>
-</a>
+  <h2>Generate Your Prayer Watch Flyer</h2>
+  
+  <input type="file" id="upload" accept="image/*">
+  <input type="text" id="name" placeholder="Enter your name">
+  <textarea id="testimony" placeholder="What did you learn?" rows="4"></textarea>
+  
+  <button onclick="downloadFlyer()">Download Flyer</button>
+  
+  <canvas id="canvas" width="1080" height="1350"></canvas>
 </div>
 
 <script>
-const template = new Image();
-template.src = "template.png";
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
+const template = new Image();
+template.src = "template.png"; // Your transparent template
+
+let userImage = new Image();
+let userImgLoaded = false;
+
+// Drag and reposition variables
+let dragging = false;
+let dragTarget = null;
+let offsetX, offsetY;
+
+let name = '';
+let testimony = '';
+let namePos = {x: 540, y: 720};
+let testimonyPos = {x: 540, y: 820};
+let imgPos = {x: 390, y: 300, size: 300};
+
+// ---------------------- UTILITY FUNCTIONS ----------------------
 function drawCircularImage(ctx, img, x, y, size) {
   ctx.save();
   ctx.beginPath();
@@ -74,15 +88,27 @@ function drawCircularImage(ctx, img, x, y, size) {
   ctx.restore();
 }
 
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   const words = text.split(' ');
   let line = '';
-
-  for (let n = 0; n < words.length; n++) {
+  for(let n=0; n<words.length; n++) {
     let testLine = line + words[n] + ' ';
     let metrics = ctx.measureText(testLine);
-
-    if (metrics.width > maxWidth && n > 0) {
+    if(metrics.width > maxWidth && n>0){
       ctx.fillText(line, x, y);
       line = words[n] + ' ';
       y += lineHeight;
@@ -93,63 +119,120 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   ctx.fillText(line, x, y);
 }
 
-function generate() {
-  const file = document.getElementById("upload").files[0];
-  const name = document.getElementById("name").value;
-  const testimony = document.getElementById("testimony").value;
+// ---------------------- LIVE PREVIEW ----------------------
+function renderCanvas() {
+  // Background fix
+  ctx.fillStyle = "#1a0f0a";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  if (!file) return alert("Upload your image");
+  // User image
+  if(userImgLoaded) drawCircularImage(ctx, userImage, imgPos.x, imgPos.y, imgPos.size);
 
+  // Template overlay
+  ctx.drawImage(template, 0, 0, 1080, 1350);
+
+  // Name
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.font = "bold 50px 'Boogaloo'";
+  ctx.fillText(name, namePos.x, namePos.y);
+
+  // Testimony background
+  const boxWidth = 600, boxHeight=350;
+  const radius = boxHeight*0.1;
+  ctx.fillStyle = "#450909";
+  drawRoundedRect(ctx, testimonyPos.x - boxWidth/2, testimonyPos.y - 30, boxWidth, boxHeight, radius);
+  ctx.fill();
+
+  // Testimony text
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "30px 'Boogaloo'";
+  wrapText(ctx, testimony, testimonyPos.x, testimonyPos.y, 500, 38);
+}
+
+// ---------------------- EVENT LISTENERS ----------------------
+document.getElementById("upload").addEventListener("change", function(e){
+  const file = e.target.files[0];
   const reader = new FileReader();
-
-  reader.onload = function(e) {
-    const img = new Image();
-
-    img.onload = function() {
-      const canvas = document.getElementById("canvas");
-      const ctx = canvas.getContext("2d");
-
-      // Background (fix transparency issue)
-      ctx.fillStyle = "#1a0f0a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw user image (circle)
-      drawCircularImage(ctx, img, 390, 300, 300);
-
-      // Draw template overlay
-      ctx.drawImage(template, 0, 0, 1080, 1350);
-
-      // TEXT SETTINGS
-      ctx.fillStyle = "#ffffff";
-      ctx.textAlign = "center";
-
-      // Auto-resize name
-      let fontSize = 50;
-      do {
-        ctx.font = "bold " + fontSize + "px Arial";
-        fontSize--;
-      } while (ctx.measureText(name).width > 700);
-
-      ctx.fillText(name, 540, 720);
-
-      // Testimony
-      ctx.font = "32px Arial";
-      wrapText(ctx, testimony, 540, 820, 600, 40);
-
-      // Enable download
-      const link = document.getElementById("download");
-      link.href = canvas.toDataURL("image/png");
-      link.download = "prayer-watch.png";
-      link.style.display = "block";
-    };
-
-    img.src = e.target.result;
-  };
-
+  reader.onload = function(ev){
+    userImage.src = ev.target.result;
+    userImage.onload = function(){ userImgLoaded=true; renderCanvas(); }
+  }
   reader.readAsDataURL(file);
+});
+
+document.getElementById("name").addEventListener("input", function(e){
+  name = e.target.value;
+  renderCanvas();
+});
+
+document.getElementById("testimony").addEventListener("input", function(e){
+  testimony = e.target.value;
+  renderCanvas();
+});
+
+// ---------------------- DRAG & DROP ----------------------
+canvas.addEventListener("mousedown", startDrag);
+canvas.addEventListener("mousemove", doDrag);
+canvas.addEventListener("mouseup", stopDrag);
+canvas.addEventListener("mouseleave", stopDrag);
+
+canvas.addEventListener("touchstart", function(e){ startDrag(e.touches[0]); e.preventDefault(); });
+canvas.addEventListener("touchmove", function(e){ doDrag(e.touches[0]); e.preventDefault(); });
+canvas.addEventListener("touchend", stopDrag);
+
+function isInside(x, y, obj){
+  if(obj===imgPos){
+    return x>obj.x && x<x+obj.size && y>obj.y && y<obj.y+obj.size;
+  } else if(obj===namePos){
+    return Math.abs(x-obj.x)<150 && Math.abs(y-obj.y)<30;
+  } else if(obj===testimonyPos){
+    return Math.abs(x-obj.x)<300 && Math.abs(y-obj.y)<175;
+  }
+  return false;
+}
+
+function startDrag(e){
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if(isInside(x,y,imgPos)) dragTarget=imgPos;
+  else if(isInside(x,y,namePos)) dragTarget=namePos;
+  else if(isInside(x,y,testimonyPos)) dragTarget=testimonyPos;
+  else dragTarget=null;
+
+  if(dragTarget){
+    dragging=true;
+    offsetX=x-(dragTarget.x || dragTarget.x);
+    offsetY=y-(dragTarget.y || dragTarget.y);
+  }
+}
+
+function doDrag(e){
+  if(!dragging || !dragTarget) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  dragTarget.x = x - offsetX;
+  dragTarget.y = y - offsetY;
+  renderCanvas();
+}
+
+function stopDrag(e){
+  dragging=false;
+  dragTarget=null;
+}
+
+// ---------------------- DOWNLOAD ----------------------
+function downloadFlyer(){
+  const link = document.createElement("a");
+  link.href = canvas.toDataURL("image/png");
+  link.download = "prayer-watch.png";
+  link.click();
 }
 </script>
 
 </body>
 </html>
-
